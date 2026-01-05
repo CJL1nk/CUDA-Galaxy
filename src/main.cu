@@ -9,31 +9,36 @@ int main() {
     std::mt19937 gen(rd());
     std::uniform_int_distribution<int> distrib(1, 100);
 
-    sf::Vector2u windowSize = sf::Vector2u(480, 480);
+    sf::Vector2u windowSize = sf::Vector2u(960, 480);
     sf::RenderWindow window(sf::VideoMode(windowSize), "Particle Simulation");
     window.setFramerateLimit(60);
 
     window.clear(sf::Color::Black);
     window.display();
 
-    constexpr int maxBodies = 2000000;
+    constexpr int maxBodies = 5000000;
     int bodyCount = 0;
 
     sf::Vector2i center = sf::Vector2i(windowSize.x / 2, windowSize.y / 2);
 
     while (bodyCount < maxBodies) {
 
-        std::uniform_int_distribution<int> distrib(1, 480);
-
+        int limit = windowSize.x;
+        std::uniform_int_distribution<int> distrib(1, limit);
         int xPos = distrib(gen);
+
+        limit = windowSize.y;
         int yPos = distrib(gen);
 
         int distFromCenter = (int)sqrt(pow(fabs(xPos - center.x), 2) + pow(fabs(yPos - center.y), 2)) + 1;
-        int bodiesToGenerate = (int)sqrt(pow(fabs(windowSize.x - center.x), 2) + pow(fabs(windowSize.y - center.y), 2)) - distFromCenter;
+        int bodiesToGenerate = (int)fabs(sqrt(pow(fabs(windowSize.x - center.x), 2) + pow(fabs(windowSize.y - center.y), 2)) - distFromCenter) / 2;
 
         std::cout << "Generating " << bodiesToGenerate << " at " << xPos << ", " << yPos << std::endl;
 
-        sf::Vertex point(sf::Vector2f(xPos, yPos), sf::Color(0, (uint8_t)bodiesToGenerate, (uint8_t)bodiesToGenerate >> 8));
+        uint8_t redVal = std::min(bodiesToGenerate, 255);
+        uint8_t greenVal = 255 - redVal;
+
+        sf::Vertex point(sf::Vector2f(xPos, yPos), sf::Color(redVal, greenVal, 0));
         window.draw(&point, 1, sf::PrimitiveType::Points);
 
         bodyCount+= bodiesToGenerate;
