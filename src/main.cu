@@ -6,8 +6,8 @@
 // 1. Pass all bodies and density map in to GPU
 // 2. Have GPU calculate the next position, velocity, and acceleration of every body. Update density map
 //    (Density map is a map of how many bodies are in each pixel, as each pixel on screen can hold multiple bodies and will be brighter the more bodies are in that pixel)
-// 4. GPU Passes density map back to cpu
-// 5. CPU Loops through density map and draws pixels on screen, according to how many bodies are in each pixel
+// 3. GPU Passes density map back to cpu
+// 4. CPU Loops through density map and draws pixels on screen, according to how many bodies are in each pixel
 
 int main() {
 
