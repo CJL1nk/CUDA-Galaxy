@@ -22,12 +22,12 @@ int main() {
     sf::RenderWindow window(sf::VideoMode(windowSize), "Big Thingy", sf::Style::Default);
     window.setFramerateLimit(60);
 
-    constexpr int maxBodies = 10000000;
+    constexpr int numBodies = 10000000;
 
     // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
     // Map sequentially containing all bodies
-    Body* bodies = (Body*)malloc(maxBodies * sizeof(Body));
+    Body* bodies = (Body*)malloc(numBodies * sizeof(Body));
 
     // Map containing the number of bodies per pixel
     int* densityMap = (int*)calloc((windowSize.x * windowSize.y), sizeof(int));
@@ -38,7 +38,7 @@ int main() {
 
     sf::VertexArray points(sf::PrimitiveType::Points);
 
-    for (int i = 0; i < maxBodies; i++) {
+    for (int i = 0; i < numBodies; i++) {
 
         double xPos = randomX(gen);
         double yPos = randomY(gen);
@@ -70,6 +70,18 @@ int main() {
             window.close();
         }
     }
+
+    // Make device copy of bodies and density map
+    Body* d_bodies;
+    int* d_densityMap;
+
+    int bodiesSize = numBodies * sizeof(Body);
+    int mapSize = windowSize.x * windowSize.y * sizeof(int);
+
+    cudaMalloc((void**)&d_bodies, bodiesSize);
+    cudaMalloc((void**)&d_densityMap, mapSize);
+
+    updateBodyPositions<<<1, 1>>>(d_bodies, bodiesSize, d_densityMap, mapSize);
     /*
     // Host copies
     int* a;
