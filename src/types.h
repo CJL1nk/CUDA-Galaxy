@@ -16,4 +16,9 @@ struct Position {
     double velY;
 };
 
+struct Body {
+    Position position;
+    double mass;
+};
+
 #endif //TYPES_H

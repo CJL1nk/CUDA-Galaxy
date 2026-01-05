@@ -3,54 +3,74 @@
 
 #define N 53000000
 
+// 1. Pass all bodies and density map in to GPU
+// 2. Have GPU calculate the next position, velocity, and acceleration of every body. Update density map
+//    (Density map is a map of how many bodies are in each pixel, as each pixel on screen can hold multiple bodies and will be brighter the more bodies are in that pixel)
+// 4. GPU Passes density map back to cpu
+// 5. CPU Loops through density map and draws pixels on screen, according to how many bodies are in each pixel
+
 int main() {
 
+    // Setup +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+    // Random number generator
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<int> distrib(1, 100);
 
-    sf::Vector2u windowSize = sf::Vector2u(960, 480);
-    sf::RenderWindow window(sf::VideoMode(windowSize), "Particle Simulation");
+    // SFML Window stuff
+    sf::Vector2u windowSize = sf::Vector2u(1920, 1080);
+    sf::RenderWindow window(sf::VideoMode(windowSize), "Big Thingy", sf::Style::Default);
     window.setFramerateLimit(60);
 
-    window.clear(sf::Color::Black);
-    window.display();
+    constexpr int maxBodies = 10000000;
 
-    constexpr int maxBodies = 5000000;
-    int bodyCount = 0;
+    // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-    sf::Vector2i center = sf::Vector2i(windowSize.x / 2, windowSize.y / 2);
+    // Map sequentially containing all bodies
+    Body* bodies = (Body*)malloc(maxBodies * sizeof(Body));
 
-    while (bodyCount < maxBodies) {
+    // Map containing the number of bodies per pixel
+    int* densityMap = (int*)calloc((windowSize.x * windowSize.y), sizeof(int));
 
-        int limit = windowSize.x;
-        std::uniform_int_distribution<int> distrib(1, limit);
-        int xPos = distrib(gen);
+    std::uniform_real_distribution<double> randomX(0.0, (double)windowSize.x * 1000.0);
+    std::uniform_real_distribution<double> randomY(0.0, (double)windowSize.y * 1000.0);
+    std::uniform_real_distribution<double> randomMass(0.0, 10000.0);
 
-        limit = windowSize.y;
-        int yPos = distrib(gen);
+    sf::VertexArray points(sf::PrimitiveType::Points);
 
-        int distFromCenter = (int)sqrt(pow(fabs(xPos - center.x), 2) + pow(fabs(yPos - center.y), 2)) + 1;
-        int bodiesToGenerate = (int)fabs(sqrt(pow(fabs(windowSize.x - center.x), 2) + pow(fabs(windowSize.y - center.y), 2)) - distFromCenter) / 2;
+    for (int i = 0; i < maxBodies; i++) {
 
-        std::cout << "Generating " << bodiesToGenerate << " at " << xPos << ", " << yPos << std::endl;
+        double xPos = randomX(gen);
+        double yPos = randomY(gen);
 
-        uint8_t redVal = std::min(bodiesToGenerate, 255);
-        uint8_t greenVal = 255 - redVal;
+        int xCoordinate = xPos / 1000;
+        int yCoordinate = yPos / 1000;
 
-        sf::Vertex point(sf::Vector2f(xPos, yPos), sf::Color(redVal, greenVal, 0));
-        window.draw(&point, 1, sf::PrimitiveType::Points);
+        bodies[i] = (Body){Position{xPos, yPos, 0, 0, 0, 0}, randomMass(gen)};
 
-        bodyCount+= bodiesToGenerate;
+
+        densityMap[(yCoordinate * windowSize.x + xCoordinate)] += 1;
+
+        // std::cout << densityMap[(yCoordinate * windowSize.x + xCoordinate)] << " Bodies at " << xCoordinate << ", " << yCoordinate << std::endl;
+
+        points.append(sf::Vertex{
+                    sf::Vector2f(xCoordinate, yCoordinate),
+                            sf::Color(densityMap[yCoordinate * windowSize.x + xCoordinate] * 20,
+                                    densityMap[yCoordinate * windowSize.x + xCoordinate] * 20,
+                                     densityMap[yCoordinate * windowSize.x + xCoordinate] * 20)});
     }
 
-    std::cout << bodyCount << std::endl;
+    std::cout << "done" << std::endl;
+
+    window.draw(points);
     window.display();
 
-    while (true) {
-
+    while (window.isOpen()) {
+        if (isKeyPressed(sf::Keyboard::Key::Escape)) {
+            window.close();
+        }
     }
-
+    /*
     // Host copies
     int* a;
     int* b;
@@ -96,9 +116,9 @@ int main() {
     duration = (stop - start);
     std::cout << duration.count() << " on CPU" << std::endl;
 
-    /*for (int i = 0; i < N; i++) {
+    for (int i = 0; i < N; i++) {
         std::cout << a[i] << " " << b[i] << " " << c[i] << std::endl;
-    }*/
+    }
 
     const cudaError_t err = cudaDeviceSynchronize();
     if (err != cudaSuccess) {
@@ -114,6 +134,6 @@ int main() {
     cudaFree(d_b);
     cudaFree(d_c);
 
-    std::cout << "Kernel executed successfully." << std::endl;
+    std::cout << "Kernel executed successfully." << std::endl; */
     return 0;
 }

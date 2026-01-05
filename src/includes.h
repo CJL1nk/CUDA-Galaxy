@@ -14,6 +14,5 @@
 #include <SFML/Window.hpp>
 
 #include "types.h"
-#include "Body.h"
 
 #endif //INCLUDES_H
