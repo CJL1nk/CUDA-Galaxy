@@ -8,7 +8,7 @@ int main() {
     // GLFW Setup +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
     // GLFW Window stuff
-    const WindowSize windowSize = {1920, 1080};
+    const WindowSize windowSize = {200, 200}; // Going above ~1250x1200 for some reason breaks the program
     GLFWwindow* window = createWindow(windowSize.width, windowSize.height, "CUDA Galaxy");
 
     // Fullscreen
@@ -50,9 +50,9 @@ int main() {
 
     // End of OpenGL setup
 
-    float distancePerPixel = 10.0f;
+    float distancePerPixel = 1000000.0f;
 
-    constexpr int numBodies = 1500000;
+    constexpr int numBodies = 75000;
     int bodiesSize = numBodies * sizeof(float);
     int numCells = windowSize.width * windowSize.height;
 
@@ -108,19 +108,21 @@ int main() {
 
     // ----------------------------------------------------------------------------------------------
 
-    int threadsPerBlock = 512;
+    constexpr int threadsPerBlock = 512;
     int blocks = (numBodies + threadsPerBlock - 1) / threadsPerBlock;
 
     while (!glfwWindowShouldClose(window)) {
 
         glfwPollEvents();
 
-        clearDensityMap<<<blocks, threadsPerBlock>>>(d_densityMap, numCells);
+        clearDensityMap<<<blocks, threadsPerBlock>>>(d_densityMap, d_heatMap, numCells);
 
         gridBodies<<<blocks, threadsPerBlock>>>(d_bodyXPos, d_bodyYPos, d_bodyCells, numBodies, distancePerPixel, windowSize.width);
 
-        generateDensityMap<<<blocks, threadsPerBlock>>>(d_bodyCells, d_densityMap, numBodies);
+        physicsKernel<<<blocks, threadsPerBlock>>>(d_bodyXPos, d_bodyYPos, d_bodyXVel, d_bodyYVel, d_bodyCells, numBodies, threadsPerBlock);
+        positionKernel<<<blocks, threadsPerBlock>>>(d_bodyXPos, d_bodyYPos, d_bodyXVel, d_bodyYVel, numBodies);
 
+        generateDensityMap<<<blocks, threadsPerBlock>>>(d_bodyCells, d_densityMap, numBodies);
         generateHeatMap<<<(numCells + threadsPerBlock - 1) / threadsPerBlock, threadsPerBlock>>>(d_densityMap, d_heatMap, numCells);
 
         cudaDeviceSynchronize();
