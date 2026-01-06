@@ -14,5 +14,10 @@ struct Position {
     double velY;
 };
 
+struct WindowSize {
+    int width;
+    int height;
+};
+
 
 #endif //TYPES_H

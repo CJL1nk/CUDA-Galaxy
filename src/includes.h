@@ -10,8 +10,8 @@
 #include <random>
 #include <ctime>
 
-#include <SFML/Graphics.hpp>
-#include <SFML/Window.hpp>
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
 #include "types.h"
 

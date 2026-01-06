@@ -17,6 +17,6 @@
  * @param windowSize Dimensions of rendering window
  * @param distancePerPixel Amount of "simulation distance" per pixel (e.g. 1000.f for 1000 "miles" per pixel)
  */
-void generateRandomBodies(int numBodies, float* bodyXPos, float* bodyYPos, float* mass, sf::Vector2u windowSize, float distancePerPixel);
+void generateRandomBodies(int numBodies, float* bodyXPos, float* bodyYPos, float* mass, WindowSize windowSize, float distancePerPixel);
 
 #endif //HELPERS_H
