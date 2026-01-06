@@ -1,3 +1,4 @@
+![GPU](gpu.png)
 
 This project mostly exists cuz I wanted to learn CUDA
 

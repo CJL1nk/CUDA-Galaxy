@@ -19,4 +19,7 @@
  */
 void generateRandomBodies(int numBodies, float* bodyXPos, float* bodyYPos, float* mass, WindowSize windowSize, float distancePerPixel);
 
+void generateGalaxyBodies(int numBodies, float* bodyXPos, float* bodyYPos, float* bodyXVel, float* bodyYVel, float* mass,
+                         WindowSize windowSize, float distancePerPixel);
+
 #endif //HELPERS_H

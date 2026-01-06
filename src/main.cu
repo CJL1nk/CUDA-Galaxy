@@ -8,7 +8,7 @@ int main() {
     // GLFW Setup +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
     // GLFW Window stuff
-    const WindowSize windowSize = {200, 200}; // Going above ~1250x1200 for some reason breaks the program
+    const WindowSize windowSize = {1920, 1080}; // Going above ~1250x1200 for some reason breaks the program
     GLFWwindow* window = createWindow(windowSize.width, windowSize.height, "CUDA Galaxy");
 
     // Fullscreen
@@ -50,22 +50,25 @@ int main() {
 
     // End of OpenGL setup
 
-    float distancePerPixel = 1000000.0f;
+    float distancePerPixel = 50.0f;
 
-    constexpr int numBodies = 75000;
+    constexpr int numBodies = 150000;
     int bodiesSize = numBodies * sizeof(float);
     int numCells = windowSize.width * windowSize.height;
 
     float* bodyXPos = (float*)malloc(bodiesSize);
     float* bodyYPos = (float*)malloc(bodiesSize);
+    float* bodyXVel = (float*)malloc(bodiesSize);
+    float* bodyYVel = (float*)malloc(bodiesSize);
     float* mass = (float*)malloc(bodiesSize);
 
     // Raw pixel stream to be rendered
-    uint8_t pixelStream[numCells * sizeof(int)];
+    uint8_t* pixelStream = new uint8_t[numCells * 4];
 
     // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
-    generateRandomBodies(numBodies, bodyXPos, bodyYPos, mass, windowSize, distancePerPixel);
+    //generateRandomBodies(numBodies, bodyXPos, bodyYPos, mass, windowSize, distancePerPixel);
+    generateGalaxyBodies(numBodies, bodyXPos, bodyYPos, bodyXVel, bodyYVel, mass, windowSize, distancePerPixel);
     std::cout << "Bodies generated" << std::endl;
 
     // CUDA Setup -----------------------------------------------------------------------------------
@@ -95,38 +98,49 @@ int main() {
     cudaMalloc((void**)&d_mass, bodiesSize);
     cudaMalloc((void**)&d_bodyCells, numBodies * sizeof(int));
     cudaMalloc((void**)&d_densityMap, numCells * sizeof(int));
-    cudaMalloc((void**)&d_heatMap, numCells * sizeof(int32_t));
+    cudaMalloc(&d_heatMap, numCells * 4 * sizeof(uint8_t));
 
     cudaMemcpy(d_bodyXPos, bodyXPos, bodiesSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_bodyYPos, bodyYPos, bodiesSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_bodyXVel, bodyXVel, bodiesSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_bodyYVel, bodyYVel, bodiesSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_mass, mass, numBodies * sizeof(float), cudaMemcpyHostToDevice);
 
-    // Free host memory, as CPU will only read from density map
+    cudaMemset(d_bodyXVel, 0, bodiesSize);
+    cudaMemset(d_bodyYVel, 0, bodiesSize);
+
+    // Free host memory, as CPU will only read from heat map
     free(bodyXPos);
     free(bodyYPos);
+    free(bodyXVel);
+    free(bodyYVel);
     free(mass);
-
-    // ----------------------------------------------------------------------------------------------
 
     constexpr int threadsPerBlock = 512;
     int blocks = (numBodies + threadsPerBlock - 1) / threadsPerBlock;
+    int cellBlocks = (numCells + threadsPerBlock - 1) / threadsPerBlock;
 
+    // ----------------------------------------------------------------------------------------------
+
+    // Main loop, no input handling for 0.0002 less CPU cycles per year
     while (!glfwWindowShouldClose(window)) {
 
         glfwPollEvents();
 
-        clearDensityMap<<<blocks, threadsPerBlock>>>(d_densityMap, d_heatMap, numCells);
+        clearDensityMap<<<cellBlocks, threadsPerBlock>>>(d_densityMap, d_heatMap, numCells);
 
-        gridBodies<<<blocks, threadsPerBlock>>>(d_bodyXPos, d_bodyYPos, d_bodyCells, numBodies, distancePerPixel, windowSize.width);
+        gridBodies<<<blocks, threadsPerBlock>>>(d_bodyXPos, d_bodyYPos, d_bodyCells, numBodies, distancePerPixel, windowSize.width, windowSize.height);
 
-        physicsKernel<<<blocks, threadsPerBlock>>>(d_bodyXPos, d_bodyYPos, d_bodyXVel, d_bodyYVel, d_bodyCells, numBodies, threadsPerBlock);
+        // Shared mem for W speed W kai cenat
+        size_t shmemSize = 3 * threadsPerBlock * sizeof(float);
+        physicsKernel<<<blocks, threadsPerBlock, shmemSize>>>(d_bodyXPos, d_bodyYPos, d_bodyXVel, d_bodyYVel, d_mass, d_bodyCells, numBodies);
         positionKernel<<<blocks, threadsPerBlock>>>(d_bodyXPos, d_bodyYPos, d_bodyXVel, d_bodyYVel, numBodies);
 
         generateDensityMap<<<blocks, threadsPerBlock>>>(d_bodyCells, d_densityMap, numBodies);
-        generateHeatMap<<<(numCells + threadsPerBlock - 1) / threadsPerBlock, threadsPerBlock>>>(d_densityMap, d_heatMap, numCells);
+        generateHeatMap<<<cellBlocks, threadsPerBlock>>>(d_densityMap, d_heatMap, numCells);
 
         cudaDeviceSynchronize();
-        cudaMemcpy(pixelStream, d_heatMap, numCells * sizeof(int), cudaMemcpyDeviceToHost); // Super RIP performance btw
+        cudaMemcpy(pixelStream, d_heatMap, numCells * 4 * sizeof(uint8_t), cudaMemcpyDeviceToHost); // Super RIP performance btw
 
         glBindTexture(GL_TEXTURE_2D, texture);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, windowSize.width, windowSize.height, GL_RGBA, GL_UNSIGNED_BYTE, pixelStream);
