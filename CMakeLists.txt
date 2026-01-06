@@ -18,6 +18,7 @@ FetchContent_MakeAvailable(SFML)
 add_executable(CUDAGalaxy
         src/main.cu
         src/kernel.cu
+        src/helpers.cpp
 )
 
 target_link_libraries(CUDAGalaxy PRIVATE SFML::Graphics SFML::Window)

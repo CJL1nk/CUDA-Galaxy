@@ -5,20 +5,14 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+// Potentially unused
 struct Position {
     double xPos;
     double yPos;
-
-    double accelX;
-    double accelY;
 
     double velX;
     double velY;
 };
 
-struct Body {
-    Position position;
-    double mass;
-};
 
 #endif //TYPES_H
