@@ -11,7 +11,7 @@ __global__ void skibidiKernel(const int* a, const int* b, int* c, int n) {
 
 __global__ void clearDensityMap(int* densityMap, const int numCells) {
 
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (idx >= numCells) return; // Exit early if body index is out of bounds
 
