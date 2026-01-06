@@ -8,18 +8,17 @@ int main() {
     // GLFW Setup +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
     // GLFW Window stuff
-    WindowSize windowSize = {1920, 1080};
+    const WindowSize windowSize = {1920, 1080};
     GLFWwindow* window = createWindow(windowSize.width, windowSize.height, "CUDA Galaxy");
 
-    // Fullscreen quad
-    float vertices[] = {
-        // positions   // tex coords
+    // Fullscreen
+    const float vertices[] = {
         -1.f, -1.f,   0.f, 0.f,
          1.f, -1.f,   1.f, 0.f,
          1.f,  1.f,   1.f, 1.f,
         -1.f,  1.f,   0.f, 1.f
     };
-    unsigned int indices[] = {0, 1, 2, 2, 3, 0};
+    const unsigned int indices[] = {0, 1, 2, 2, 3, 0};
 
     GLuint VAO, VBO, EBO;
     glGenVertexArrays(1, &VAO);
@@ -62,10 +61,7 @@ int main() {
     float* mass = (float*)malloc(bodiesSize);
 
     // Raw pixel stream to be rendered
-    uint8_t pixelStream[windowSize.width * windowSize.height * 4];
-
-    // Map containing how many bodies are in each pixel
-    int* densityMap = (int*)malloc(numCells * sizeof(int));
+    uint8_t pixelStream[numCells * sizeof(int)];
 
     // +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
@@ -86,7 +82,11 @@ int main() {
     // Map containing which cell each body lays in
     int* d_bodyCells;
 
+    // Map containing how many pixels are in each cell
     int* d_densityMap;
+
+    // Pixel output stream (RGBA uint8)
+    uint8_t* d_heatMap;
 
     cudaMalloc((void**)&d_bodyXPos, bodiesSize);
     cudaMalloc((void**)&d_bodyYPos, bodiesSize);
@@ -95,6 +95,7 @@ int main() {
     cudaMalloc((void**)&d_mass, bodiesSize);
     cudaMalloc((void**)&d_bodyCells, numBodies * sizeof(int));
     cudaMalloc((void**)&d_densityMap, numCells * sizeof(int));
+    cudaMalloc((void**)&d_heatMap, numCells * sizeof(int32_t));
 
     cudaMemcpy(d_bodyXPos, bodyXPos, bodiesSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_bodyYPos, bodyYPos, bodiesSize, cudaMemcpyHostToDevice);
@@ -110,16 +111,6 @@ int main() {
     int threadsPerBlock = 512;
     int blocks = (numBodies + threadsPerBlock - 1) / threadsPerBlock;
 
-    clearDensityMap<<<blocks, threadsPerBlock>>>(d_densityMap, numCells);
-
-    gridBodies<<<blocks, threadsPerBlock>>>(d_bodyXPos, d_bodyYPos, d_bodyCells, numBodies, distancePerPixel, windowSize.width);
-
-    generateDensityMap<<<blocks, threadsPerBlock>>>(d_bodyCells, d_densityMap, numBodies);
-
-    cudaDeviceSynchronize();
-    cudaMemcpy(densityMap, d_densityMap, numCells * sizeof(int), cudaMemcpyDeviceToHost);
-
-
     while (!glfwWindowShouldClose(window)) {
 
         glfwPollEvents();
@@ -130,8 +121,10 @@ int main() {
 
         generateDensityMap<<<blocks, threadsPerBlock>>>(d_bodyCells, d_densityMap, numBodies);
 
+        generateHeatMap<<<(numCells + threadsPerBlock - 1) / threadsPerBlock, threadsPerBlock>>>(d_densityMap, d_heatMap, numCells);
+
         cudaDeviceSynchronize();
-        cudaMemcpy(pixelStream, d_densityMap, numCells * sizeof(int), cudaMemcpyDeviceToHost);
+        cudaMemcpy(pixelStream, d_heatMap, numCells * sizeof(int), cudaMemcpyDeviceToHost); // Super RIP performance btw
 
         glBindTexture(GL_TEXTURE_2D, texture);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, windowSize.width, windowSize.height, GL_RGBA, GL_UNSIGNED_BYTE, pixelStream);

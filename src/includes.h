@@ -9,6 +9,7 @@
 #include <chrono>
 #include <random>
 #include <ctime>
+#include <cstdint>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
