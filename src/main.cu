@@ -106,9 +106,6 @@ int main() {
     cudaMemcpy(d_bodyYVel, bodyYVel, bodiesSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_mass, mass, numBodies * sizeof(float), cudaMemcpyHostToDevice);
 
-    cudaMemset(d_bodyXVel, 0, bodiesSize);
-    cudaMemset(d_bodyYVel, 0, bodiesSize);
-
     // Free host memory, as CPU will only read from heat map
     free(bodyXPos);
     free(bodyYPos);
