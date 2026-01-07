@@ -75,7 +75,7 @@ void generateGalaxyBodies(int numBodies, float* bodyXPos, float* bodyYPos, float
         if (r > 0.01f) {
             // Keplerian velocity: v = sqrt(GM/r)
             // For visual effect, use a simplified version
-            float orbitalSpeed = std::sqrt(10000.0f / (r + 10.0f)) * 0.8f;
+            float orbitalSpeed = std::sqrt(100000.0f / (r + 10.0f)) * 0.8f;
 
             // Perpendicular to radius (tangential velocity)
             bodyXVel[i] = -dy / r * orbitalSpeed;

@@ -131,8 +131,16 @@ __global__ void generateHeatMap(const int* densityMap, uint8_t* heatMap, const i
     if (normalized > 1.0f) normalized = 1.0f;
     if (normalized < 0.0f) normalized = 0.0f;
 
+    float whiteAmount = 0.0f;
+
+    if (normalized >= 0.85f) {
+        whiteAmount = static_cast<uint8_t>(255 - (normalized * 128));
+    }
+
     // * 4 to account for 4 bytes
     const int pixelStart = idx * 4;
+    heatMap[pixelStart + 0] = static_cast<uint8_t>(whiteAmount);
+    heatMap[pixelStart + 1] = static_cast<uint8_t>(127.f * normalized + whiteAmount);
     heatMap[pixelStart + 2] = static_cast<uint8_t>(255.f * normalized);
     heatMap[pixelStart + 3] = static_cast<uint8_t>(255);
 }
