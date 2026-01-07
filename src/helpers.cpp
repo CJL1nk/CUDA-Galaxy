@@ -36,7 +36,14 @@ void generateGalaxyBodies(int numBodies, float* bodyXPos, float* bodyYPos, float
     std::normal_distribution<float> randomNoise(0.0f, maxRadius * 0.05f);
     std::exponential_distribution<float> radialDist(2.0f / maxRadius);
 
-    for (int i = 0; i < numBodies; i++) {
+    // Silly black hole
+    bodyXPos[0] = centerX;
+    bodyYPos[0] = centerY;
+    bodyXVel[0] = 0.0f;
+    bodyYVel[0] = 0.0f;
+    mass[0] = 5000000.f; // 5 million stars
+
+    for (int i = 1; i < numBodies; i++) {
         float radius = radialDist(gen);
         if (radius > maxRadius) radius = maxRadius;
 
@@ -75,7 +82,7 @@ void generateGalaxyBodies(int numBodies, float* bodyXPos, float* bodyYPos, float
         if (r > 0.01f) {
             // Keplerian velocity: v = sqrt(GM/r)
             // For visual effect, use a simplified version
-            float orbitalSpeed = std::sqrt(100000.0f / (r + 10.0f)) * 0.8f;
+            float orbitalSpeed = std::sqrt(1000000.0f / (r + 10.0f)) * 0.8f;
 
             // Perpendicular to radius (tangential velocity)
             bodyXVel[i] = -dy / r * orbitalSpeed;

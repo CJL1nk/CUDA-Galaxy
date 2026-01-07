@@ -18,4 +18,8 @@ __global__ void physicsKernel(const float* bodyXPos, const float* bodyYPos, floa
 
 __global__ void positionKernel(float* bodyXPos, float* bodyYPos, const float* bodyXVel, const float* bodyYVel, int numBodies);
 
-__global__ void generateHeatMap(const int* densityMap, uint8_t* heatMap, int numCells);
+__global__ void generateHeatMap(const int* densityMap, uint8_t* heatMap, float* d_prevNormalized, int numCells);
+
+__device__ void hsvToRgb(float h, float s, float v, float& r, float& g, float& b);
+
+__device__ __forceinline__ float lerp1(float a, float b, float t);

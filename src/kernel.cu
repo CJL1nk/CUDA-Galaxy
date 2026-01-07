@@ -121,27 +121,69 @@ __global__ void positionKernel(float* bodyXPos, float* bodyYPos, const float* bo
     bodyYPos[idx] += bodyYVel[idx];
 }
 
-__global__ void generateHeatMap(const int* densityMap, uint8_t* heatMap, const int numCells) {
+__global__ void generateHeatMap(const int* densityMap, uint8_t* heatMap, float* d_prevNormalized, const int numCells) {
 
     const int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (idx >= numCells) return; // Exit early if body index is out of bounds
 
-    float normalized = densityMap[idx] / 5.0f;
-    if (normalized > 1.0f) normalized = 1.0f;
-    if (normalized < 0.0f) normalized = 0.0f;
+    float raw = densityMap[idx] / 20.0f;
+    raw = fminf(fmaxf(raw, 0.0f), 1.0f);
 
-    float whiteAmount = 0.0f;
+    // Smooth only brightness
+    float prevV = d_prevNormalized[idx];
+    float vSmooth = lerp1(prevV, raw, 0.15f);
+    d_prevNormalized[idx] = vSmooth;;
 
-    if (normalized >= 0.85f) {
-        whiteAmount = static_cast<uint8_t>(255 - (normalized * 128));
+    float h, s, v;
+
+    if (raw < 0.8f) {
+        float t = raw / 0.8f;
+        h = (1.0f - t) * 240.0f;
+        s = 1.0f;
+        v = sqrtf(vSmooth);
+    } else {
+        float t = (raw - 0.8f) / 0.2f;
+        h = 0.0f;
+        s = 1.0f - t;
+        v = 1.0f;
     }
 
-    // * 4 to account for 4 bytes
-    const int pixelStart = idx * 4;
-    heatMap[pixelStart + 0] = static_cast<uint8_t>(whiteAmount);
-    heatMap[pixelStart + 1] = static_cast<uint8_t>(127.f * normalized + whiteAmount);
-    heatMap[pixelStart + 2] = static_cast<uint8_t>(255.f * normalized);
-    heatMap[pixelStart + 3] = static_cast<uint8_t>(255);
+    float r, g, b;
+    hsvToRgb(h, s, v, r, g, b);
+
+    int pixelStart = idx * 4;
+    heatMap[pixelStart + 0] = (uint8_t)(r * 255.0f);
+    heatMap[pixelStart + 1] = (uint8_t)(g * 255.0f);
+    heatMap[pixelStart + 2] = (uint8_t)(b * 255.0f);
+    heatMap[pixelStart + 3] = 255;
+}
+
+__device__ void hsvToRgb(float h, float s, float v, float& r, float& g, float& b) {
+
+    h = fmodf(h, 360.0f);
+    if (h < 0.0f) h += 360.0f;
+
+    float c = v * s;
+    float hPrime = h / 60.0f;
+    float x = c * (1.0f - fabsf(fmodf(hPrime, 2.0f) - 1.0f));
+
+    float r1, g1, b1;
+
+    if      (hPrime < 1.0f) { r1 = c; g1 = x; b1 = 0.0f; }
+    else if (hPrime < 2.0f) { r1 = x; g1 = c; b1 = 0.0f; }
+    else if (hPrime < 3.0f) { r1 = 0.0f; g1 = c; b1 = x; }
+    else if (hPrime < 4.0f) { r1 = 0.0f; g1 = x; b1 = c; }
+    else if (hPrime < 5.0f) { r1 = x; g1 = 0.0f; b1 = c; }
+    else                    { r1 = c; g1 = 0.0f; b1 = x; }
+
+    float m = v - c;
+    r = r1 + m;
+    g = g1 + m;
+    b = b1 + m;
+}
+
+__device__ __forceinline__ float lerp1(float a, float b, float t) {
+    return a + t * (b - a);
 }
 

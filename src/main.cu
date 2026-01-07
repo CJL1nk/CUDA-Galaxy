@@ -45,8 +45,8 @@ int main() {
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, windowSize.width, windowSize.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     // End of OpenGL setup
 
@@ -91,6 +91,8 @@ int main() {
     // Pixel output stream (RGBA uint8)
     uint8_t* d_heatMap;
 
+    float* d_prevNormalized;
+
     cudaMalloc((void**)&d_bodyXPos, bodiesSize);
     cudaMalloc((void**)&d_bodyYPos, bodiesSize);
     cudaMalloc((void**)&d_bodyXVel, bodiesSize);
@@ -99,6 +101,9 @@ int main() {
     cudaMalloc((void**)&d_bodyCells, numBodies * sizeof(int));
     cudaMalloc((void**)&d_densityMap, numCells * sizeof(int));
     cudaMalloc(&d_heatMap, numCells * 4 * sizeof(uint8_t));
+    cudaMalloc(&d_prevNormalized, numCells * sizeof(float));
+
+    cudaMemset(d_prevNormalized, 0, numCells * sizeof(float));
 
     cudaMemcpy(d_bodyXPos, bodyXPos, bodiesSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_bodyYPos, bodyYPos, bodiesSize, cudaMemcpyHostToDevice);
@@ -134,7 +139,7 @@ int main() {
         positionKernel<<<blocks, threadsPerBlock>>>(d_bodyXPos, d_bodyYPos, d_bodyXVel, d_bodyYVel, numBodies);
 
         generateDensityMap<<<blocks, threadsPerBlock>>>(d_bodyCells, d_densityMap, numBodies);
-        generateHeatMap<<<cellBlocks, threadsPerBlock>>>(d_densityMap, d_heatMap, numCells);
+        generateHeatMap<<<cellBlocks, threadsPerBlock>>>(d_densityMap, d_heatMap, d_prevNormalized, numCells);
 
         cudaDeviceSynchronize();
         cudaMemcpy(pixelStream, d_heatMap, numCells * 4 * sizeof(uint8_t), cudaMemcpyDeviceToHost); // Super RIP performance btw
